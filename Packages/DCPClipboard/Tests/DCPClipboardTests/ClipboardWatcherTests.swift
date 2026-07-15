@@ -1,45 +1,57 @@
 import XCTest
 @testable import DCPClipboard
+@testable import DCPModel
 
 @MainActor
 final class ClipboardWatcherTests: XCTestCase {
     func testPollDoesNothingWhenChangeCountIsUnchanged() {
         let pasteboard = FakePasteboard()
         let watcher = ClipboardWatcher(pasteboard: pasteboard)
-        var detections: [(Int, [String])] = []
-        watcher.onChangeDetected = { detections.append(($0, $1)) }
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
 
         watcher.poll()
 
-        XCTAssertTrue(detections.isEmpty)
+        XCTAssertTrue(captured.isEmpty)
     }
 
-    func testPollFiresOnceWhenChangeCountAdvances() {
+    func testPollCapturesEntryWhenChangeCountAdvances() {
         let pasteboard = FakePasteboard()
         let watcher = ClipboardWatcher(pasteboard: pasteboard)
-        var detections: [(Int, [String])] = []
-        watcher.onChangeDetected = { detections.append(($0, $1)) }
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
 
-        pasteboard.setData(Data("hello".utf8), forType: "public.utf8-plain-text")
+        pasteboard.setData(Data("hello".utf8), forType: PasteboardType.plainText)
         watcher.poll()
         watcher.poll()
 
-        XCTAssertEqual(detections.count, 1)
-        XCTAssertEqual(detections.first?.0, pasteboard.changeCount)
-        XCTAssertEqual(detections.first?.1, ["public.utf8-plain-text"])
+        XCTAssertEqual(captured.count, 1)
+        XCTAssertEqual(captured.first?.previewText, "hello")
+    }
+
+    func testPollIgnoresChangesWithNoSupportedRepresentation() {
+        let pasteboard = FakePasteboard()
+        let watcher = ClipboardWatcher(pasteboard: pasteboard)
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
+
+        pasteboard.setData(Data([0xFF, 0xD8]), forType: "public.png")
+        watcher.poll()
+
+        XCTAssertTrue(captured.isEmpty)
     }
 
     func testPollFiresAgainOnEachSubsequentChange() {
         let pasteboard = FakePasteboard()
         let watcher = ClipboardWatcher(pasteboard: pasteboard)
-        var detectionCount = 0
-        watcher.onChangeDetected = { _, _ in detectionCount += 1 }
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
 
-        pasteboard.setData(Data("first".utf8), forType: "public.utf8-plain-text")
+        pasteboard.setData(Data("first".utf8), forType: PasteboardType.plainText)
         watcher.poll()
-        pasteboard.setData(Data("second".utf8), forType: "public.utf8-plain-text")
+        pasteboard.setData(Data("second".utf8), forType: PasteboardType.plainText)
         watcher.poll()
 
-        XCTAssertEqual(detectionCount, 2)
+        XCTAssertEqual(captured.map(\.previewText), ["first", "second"])
     }
 }

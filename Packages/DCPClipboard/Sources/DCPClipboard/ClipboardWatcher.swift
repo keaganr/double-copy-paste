@@ -1,3 +1,4 @@
+import DCPModel
 import Foundation
 import os
 
@@ -9,9 +10,6 @@ private let logger = Logger(subsystem: "com.keaganr.DoubleCopyPaste", category: 
 /// `NSPasteboard.changeCount` on a timer while running — the same approach
 /// `simple-window-snap` uses to poll `AXIsProcessTrusted()`, for the same
 /// reason (no push notification exists for that either).
-///
-/// Phase 1: log-only, no history capture yet — that lands in Phase 2 once
-/// `DCPModel.ClipboardEntry` exists to capture into.
 @MainActor
 public final class ClipboardWatcher {
     private let pasteboard: PasteboardProviding
@@ -22,10 +20,10 @@ public final class ClipboardWatcher {
     // @MainActor class; only ever touched on the main actor otherwise.
     private nonisolated(unsafe) var pollTimer: Timer?
 
-    /// Fired after a detected pasteboard change is logged. Phase 2 hooks this
-    /// to capture a `ClipboardEntry` into the history store; tests use it to
-    /// verify change detection without depending on log output.
-    public var onChangeDetected: ((_ changeCount: Int, _ types: [String]) -> Void)?
+    /// Fired when a detected pasteboard change yields a capturable entry
+    /// (i.e. `ClipboardEntry.capture` didn't return `nil`). Tests drive
+    /// `poll()` directly and observe this instead of depending on log output.
+    public var onEntryCaptured: ((ClipboardEntry) -> Void)?
 
     public init(pasteboard: PasteboardProviding = SystemPasteboard.shared, pollInterval: TimeInterval = 0.5) {
         self.pasteboard = pasteboard
@@ -59,7 +57,12 @@ public final class ClipboardWatcher {
         lastSeenChangeCount = count
 
         let types = pasteboard.types()
-        logger.debug("Clipboard changed: changeCount=\(count, privacy: .public) types=\(types.joined(separator: ", "), privacy: .public)")
-        onChangeDetected?(count, types)
+        guard let entry = ClipboardEntry.capture(types: types, dataProvider: pasteboard.data(forType:)) else {
+            logger.debug("Clipboard changed but no supported representation found: changeCount=\(count, privacy: .public) types=\(types.joined(separator: ", "), privacy: .public)")
+            return
+        }
+
+        logger.debug("Captured clipboard entry: changeCount=\(count, privacy: .public) preview=\(entry.previewText, privacy: .private)")
+        onEntryCaptured?(entry)
     }
 }
