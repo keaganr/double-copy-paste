@@ -2,9 +2,10 @@
 
 A native macOS menu-bar utility that keeps a running history of your
 clipboard, so copying something new never permanently loses what was there
-before. See [functionality.md](functionality.md) for the product spec and
+before. See [functionality.md](functionality.md) for the product spec,
 [implementation-plan.md](implementation-plan.md) for the architecture and
-phased build plan.
+phased build plan, and [DISTRIBUTION.md](DISTRIBUTION.md) for
+signing/notarizing a build to share with someone else.
 
 ## Requirements
 
