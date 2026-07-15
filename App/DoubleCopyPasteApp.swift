@@ -1,3 +1,4 @@
+import DCPUI
 import SwiftUI
 
 @main
@@ -6,10 +7,7 @@ struct DoubleCopyPasteApp: App {
 
     var body: some Scene {
         MenuBarExtra("Double Copy Paste", systemImage: "doc.on.clipboard") {
-            Button("Quit Double Copy Paste") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            MenuBarContentView(historyStore: appDelegate.historyStore, clipboardWatcher: appDelegate.clipboardWatcher)
         }
         .menuBarExtraStyle(.menu)
     }

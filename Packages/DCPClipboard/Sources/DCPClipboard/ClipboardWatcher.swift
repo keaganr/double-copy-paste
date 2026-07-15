@@ -49,6 +49,23 @@ public final class ClipboardWatcher {
         pollTimer = nil
     }
 
+    /// Writes `entry` back onto the pasteboard, overwriting whatever is
+    /// currently there — the "rollback" action.
+    ///
+    /// Writing to the pasteboard bumps `changeCount` again, same as any
+    /// other copy. Without the `lastSeenChangeCount` update below, the next
+    /// `poll()` would see that as a brand-new external change and re-capture
+    /// this restore as a duplicate history entry — the single most common
+    /// bug source in a tool like this. Updating it here, before the next
+    /// poll can observe the new count, closes that loop.
+    public func restore(_ entry: ClipboardEntry) {
+        pasteboard.clearContents()
+        for representation in entry.representations {
+            pasteboard.setData(representation.data, forType: representation.type)
+        }
+        lastSeenChangeCount = pasteboard.changeCount
+    }
+
     /// Exposed at `internal` (not `private`) so tests can drive it directly
     /// via `@testable import`, rather than depending on `Timer` firing.
     func poll() {
