@@ -57,8 +57,9 @@ public struct MenuBarContentView: View {
     }
 
     /// Collapses to a single line and truncates so long copies don't blow
-    /// out the width of the dropdown.
-    private static func preview(for entry: ClipboardEntry) -> String {
+    /// out the width of the dropdown. Exposed at `internal` (not `private`)
+    /// so tests can drive it directly via `@testable import`.
+    static func preview(for entry: ClipboardEntry) -> String {
         let singleLine = entry.previewText.replacingOccurrences(of: "\n", with: " ")
         guard singleLine.count > 60 else { return singleLine }
         return String(singleLine.prefix(60)) + "…"
