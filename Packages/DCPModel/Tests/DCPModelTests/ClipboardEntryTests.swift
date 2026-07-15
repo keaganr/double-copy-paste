@@ -28,4 +28,22 @@ final class ClipboardEntryTests: XCTestCase {
         XCTAssertEqual(entry?.representations.count, 1)
         XCTAssertEqual(entry?.representations.first?.type, PasteboardType.plainText)
     }
+
+    func testCaptureReturnsNilWhenConcealedMarkerPresentEvenWithPlainText() {
+        let entry = ClipboardEntry.capture(types: [PasteboardType.plainText, PasteboardType.concealed]) { type in
+            type == PasteboardType.plainText ? Data("super-secret-password".utf8) : Data()
+        }
+        XCTAssertNil(entry, "a password manager's ConcealedType marker must suppress capture entirely")
+    }
+
+    func testCaptureReturnsNilWhenTransientMarkerPresent() {
+        let entry = ClipboardEntry.capture(types: [PasteboardType.plainText, PasteboardType.transient]) { type in
+            type == PasteboardType.plainText ? Data("one-time-code".utf8) : Data()
+        }
+        XCTAssertNil(entry)
+    }
+
+    func testIsExcludedIsFalseForOrdinaryTypes() {
+        XCTAssertFalse(PasteboardType.isExcluded(types: [PasteboardType.plainText, PasteboardType.rtf]))
+    }
 }

@@ -22,6 +22,18 @@ public enum PasteboardType {
     public static let rtf = "public.rtf"
     public static let html = "public.html"
     public static let allowList: [String] = [plainText, rtf, html]
+
+    /// Convention respected by clipboard managers: password managers (1Password,
+    /// Bitwarden, etc.) mark a pasteboard write with one of these types to
+    /// signal "don't capture this into history." Not optional — any tool that
+    /// keeps clipboard history is expected to honor it.
+    public static let concealed = "org.nspasteboard.ConcealedType"
+    public static let transient = "org.nspasteboard.TransientType"
+    public static let exclusionMarkers: [String] = [concealed, transient]
+
+    public static func isExcluded(types: [String]) -> Bool {
+        !Set(types).isDisjoint(with: exclusionMarkers)
+    }
 }
 
 public struct ClipboardEntry: Identifiable, Equatable, Sendable {
@@ -39,9 +51,13 @@ public struct ClipboardEntry: Identifiable, Equatable, Sendable {
 
     /// Builds an entry from the pasteboard's currently available types,
     /// reading each allow-listed type's data via `dataProvider`. Returns
-    /// `nil` if none of the allow-listed types are present (e.g. only an
-    /// image or file was copied — not yet supported).
+    /// `nil` if the pasteboard is marked concealed/transient (see
+    /// `PasteboardType.exclusionMarkers`), or if none of the allow-listed
+    /// types are present (e.g. only an image or file was copied — not yet
+    /// supported).
     public static func capture(types: [String], dataProvider: (String) -> Data?) -> ClipboardEntry? {
+        guard !PasteboardType.isExcluded(types: types) else { return nil }
+
         let representations = PasteboardType.allowList.compactMap { type -> PasteboardRepresentation? in
             guard types.contains(type), let data = dataProvider(type) else { return nil }
             return PasteboardRepresentation(type: type, data: data)

@@ -101,4 +101,30 @@ final class ClipboardWatcherTests: XCTestCase {
 
         XCTAssertEqual(captured.map(\.previewText), ["something new"])
     }
+
+    func testPollSkipsConcealedContentEvenWhenPlainTextPresent() {
+        let pasteboard = FakePasteboard()
+        let watcher = ClipboardWatcher(pasteboard: pasteboard)
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
+
+        pasteboard.setData(Data("super-secret-password".utf8), forType: PasteboardType.plainText)
+        pasteboard.setData(Data(), forType: PasteboardType.concealed)
+        watcher.poll()
+
+        XCTAssertTrue(captured.isEmpty, "content marked ConcealedType (e.g. by a password manager) must never be captured")
+    }
+
+    func testPollSkipsTransientContent() {
+        let pasteboard = FakePasteboard()
+        let watcher = ClipboardWatcher(pasteboard: pasteboard)
+        var captured: [ClipboardEntry] = []
+        watcher.onEntryCaptured = { captured.append($0) }
+
+        pasteboard.setData(Data("one-time-code".utf8), forType: PasteboardType.plainText)
+        pasteboard.setData(Data(), forType: PasteboardType.transient)
+        watcher.poll()
+
+        XCTAssertTrue(captured.isEmpty)
+    }
 }

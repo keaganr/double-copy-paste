@@ -74,6 +74,10 @@ public final class ClipboardWatcher {
         lastSeenChangeCount = count
 
         let types = pasteboard.types()
+        if PasteboardType.isExcluded(types: types) {
+            logger.debug("Clipboard changed but marked concealed/transient — not captured: changeCount=\(count, privacy: .public)")
+            return
+        }
         guard let entry = ClipboardEntry.capture(types: types, dataProvider: pasteboard.data(forType:)) else {
             logger.debug("Clipboard changed but no supported representation found: changeCount=\(count, privacy: .public) types=\(types.joined(separator: ", "), privacy: .public)")
             return
