@@ -20,6 +20,11 @@ public struct MenuBarContentView: View {
         if historyStore.entries.isEmpty {
             Text("No clipboard history yet")
         } else {
+            Text("Previous clipboard entries (click to copy):")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .disabled(true)
+
             ForEach(historyStore.entries) { entry in
                 Button(Self.preview(for: entry)) {
                     clipboardWatcher.restore(entry)
