@@ -1,8 +1,11 @@
 import AppKit
+import DCPClipboard
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    let clipboardWatcher = ClipboardWatcher()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Clipboard watcher wiring lands in Phase 1.
+        clipboardWatcher.start()
     }
 }
