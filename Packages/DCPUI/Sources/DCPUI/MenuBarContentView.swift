@@ -8,6 +8,7 @@ import SwiftUI
 /// that entry's content, plus a Clear History action and Quit.
 public struct MenuBarContentView: View {
     @ObservedObject private var historyStore: ClipboardHistoryStore
+    @StateObject private var launchAtLoginManager = LaunchAtLoginManager()
     private let clipboardWatcher: ClipboardWatcher
 
     public init(historyStore: ClipboardHistoryStore, clipboardWatcher: ClipboardWatcher) {
@@ -31,6 +32,16 @@ public struct MenuBarContentView: View {
                 historyStore.clear()
             }
         }
+
+        Divider()
+
+        Toggle(
+            "Launch at Login",
+            isOn: Binding(
+                get: { launchAtLoginManager.isEnabled },
+                set: { launchAtLoginManager.setEnabled($0) }
+            )
+        )
 
         Divider()
 

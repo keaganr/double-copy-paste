@@ -12,11 +12,6 @@ phased build plan.
 - Xcode 15 or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) — only needed if you change `project.yml` and need to regenerate `DoubleCopyPaste.xcodeproj`; not needed just to build/run.
 
-## Status
-
-Early scaffolding in progress — see `implementation-plan.md` for the
-phased build order. Each phase is landed as its own commit.
-
 ## Project Structure
 
 ```
@@ -24,7 +19,7 @@ App/                  # App target: @main entry, AppDelegate, Info.plist, Assets
 Packages/
   DCPModel/            # ClipboardEntry model + ClipboardHistoryStore (pure Swift)
   DCPClipboard/         # NSPasteboard polling watcher + restore logic
-  DCPUI/                 # SwiftUI views (menu bar dropdown)
+  DCPUI/                 # SwiftUI views (menu bar dropdown, Launch at Login)
 project.yml            # XcodeGen spec — source of truth for the .xcodeproj
 ```
 
@@ -37,8 +32,8 @@ source files or packages).
 
 1. Open `DoubleCopyPaste.xcodeproj` in Xcode.
 2. Select the `DoubleCopyPaste` scheme and press ⌘R.
-3. The app has no Dock icon or window — look for its icon in the menu bar
-   at the top of the screen.
+3. The app has no Dock icon or window — look for its clipboard icon in the
+   menu bar at the top of the screen.
 
 To build from the command line instead:
 
@@ -53,3 +48,47 @@ independently without opening Xcode:
 ```sh
 cd Packages/DCPModel && swift test
 ```
+
+## Usage
+
+1. Click the clipboard icon in the menu bar to open the dropdown. It lists
+   your recent clipboard history, most recent first, as a single-line
+   truncated preview of each entry.
+2. Copy things normally, anywhere on your Mac — plain text and rich text
+   (RTF/HTML) are picked up automatically within about half a second.
+3. Click any entry in the dropdown to roll the system clipboard back to
+   it, overwriting whatever is on the clipboard right now. Paste (⌘V)
+   normally afterward.
+4. "Clear History" empties the list. History is **in-memory only** — it
+   also resets automatically whenever the app quits or your Mac restarts,
+   by design (see implementation-plan.md for why).
+5. History is capped at the 50 most recent entries; older ones drop off
+   automatically. Copying the same thing twice in a row doesn't create a
+   duplicate row.
+6. Content copied by a password manager (anything marked
+   `org.nspasteboard.ConcealedType`/`TransientType`, a convention 1Password,
+   Bitwarden, and similar apps use) never appears in history.
+7. "Launch at Login" toggles whether the app starts automatically at login,
+   via `SMAppService` — check System Settings → General → Login Items to
+   confirm it took effect.
+
+To watch clipboard-detection internals instead of/alongside the dropdown:
+
+```sh
+/usr/bin/log stream --predicate 'subsystem == "com.keaganr.DoubleCopyPaste"' --style compact --level debug
+```
+
+Note: use `/usr/bin/log`, not bare `log` — zsh has a builtin of the same
+name that shadows it.
+
+## Development Notes
+
+**Dev-cycle gotcha:** `project.yml` pins `DEVELOPMENT_TEAM` to a real Apple
+Development certificate rather than leaving it ad-hoc. This app doesn't
+need any TCC-gated permission (unlike `simple-window-snap`'s Accessibility
+requirement), so a stable signing identity isn't strictly required for
+local development to work — it's kept anyway for consistency with the
+release signing setup and to avoid Gatekeeper friction on rebuilds.
+
+No `.entitlements` file; the app is unsandboxed, distributed directly
+(not through the Mac App Store) — see `DISTRIBUTION.md`.
