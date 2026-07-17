@@ -11,6 +11,8 @@ public struct MenuBarContentView: View {
     @StateObject private var launchAtLoginManager = LaunchAtLoginManager()
     private let clipboardWatcher: ClipboardWatcher
 
+    @StateObject private var clock = TickingClock()
+
     public init(historyStore: ClipboardHistoryStore, clipboardWatcher: ClipboardWatcher) {
         self.historyStore = historyStore
         self.clipboardWatcher = clipboardWatcher
@@ -26,8 +28,10 @@ public struct MenuBarContentView: View {
                 .disabled(true)
 
             ForEach(historyStore.entries) { entry in
-                Button(Self.preview(for: entry)) {
+                Button {
                     clipboardWatcher.restore(entry)
+                } label: {
+                    Self.timestampText(for: entry, now: clock.now) + Text(" ") + Text(Self.preview(for: entry))
                 }
             }
 
@@ -63,5 +67,39 @@ public struct MenuBarContentView: View {
         let singleLine = entry.previewText.replacingOccurrences(of: "\n", with: " ")
         guard singleLine.count > 60 else { return singleLine }
         return String(singleLine.prefix(60)) + "…"
+    }
+
+    /// Styled, italicized/secondary-colored `Text` for an entry's relative
+    /// timestamp, meant to be prepended to the preview text so the two read
+    /// as visually distinct parts of the same menu item title.
+    static func timestampText(for entry: ClipboardEntry, now: Date = Date()) -> Text {
+        Text(relativeTimeString(for: entry.capturedAt, relativeTo: now))
+            .italic()
+            .foregroundColor(.secondary)
+    }
+
+    /// "10 seconds ago" / "3 minutes ago" while `date` falls on the same
+    /// calendar day as `now`; "Yesterday" for the previous calendar day;
+    /// an absolute medium-style date beyond that (`RelativeDateTimeFormatter`
+    /// only speaks in elapsed units, so it can't produce "Yesterday" itself).
+    static func relativeTimeString(for date: Date, relativeTo now: Date) -> String {
+        guard Calendar.current.isDateInToday(date) else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.doesRelativeDateFormatting = true
+            dateFormatter.dateStyle = .medium
+            dateFormatter.timeStyle = .none
+            return dateFormatter.string(from: date)
+        }
+
+        // Below 1 second, `RelativeDateTimeFormatter` rounds to 0 and reads
+        // that as *future* tense ("In 0 seconds") rather than "ago" — also
+        // covers `date` landing a hair after `now` from clock-read skew
+        // between capture time and render time.
+        guard now.timeIntervalSince(date) >= 1 else { return "Just now" }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.formattingContext = .beginningOfSentence
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 }
